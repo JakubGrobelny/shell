@@ -1,0 +1,7 @@
+*.o
+*.d
+*.a
+libcsapp/*.o
+libcsapp/*.d
+libcsapp/*.a
+shell
