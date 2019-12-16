@@ -20,11 +20,29 @@ static int tty_fd = -1;    /* controlling terminal file descriptor */
 
 static void sigchld_handler(int sig) {
   int old_errno = errno;
-  pid_t pid;
   int status;
   /* TODO: Change state (FINISHED, RUNNING, STOPPED) of processes and jobs.
    * Bury all children that finished saving their status in jobs. */
-  (void)status;(void)pid;
+  for (size_t j = 0; j < njobmax; j++) {
+    job_t* job = &jobs[j];
+    if (!job->pgid) {
+      continue;
+    }
+
+    for (size_t p = 0; p < job->nproc; p++) {
+      proc_t* proc = &job->proc[p];
+      size_t fin_count = 0;
+      if (proc->state != FINISHED, waitpid(proc->pid, &status, WNOHANG)) {
+        proc->state = FINISHED;
+        proc->exitcode = status;
+        fin_count++;
+      }
+
+      if (fin_count == job->nproc) {
+        job->state = FINISHED;
+      }
+    }
+  }
 
 
   errno = old_errno;
@@ -111,7 +129,10 @@ int jobstate(int j, int *statusp) {
   int state = job->state;
 
   /* TODO: Handle case where job has finished. */
-  (void)movejob; (void)deljob;
+  if (jobs->state == FINISHED) {
+    *statusp = jobs->proc[jobs->nproc-1].exitcode;
+    deljob(jobs);
+  }
 
   return state;
 }
@@ -145,6 +166,12 @@ bool killjob(int j) {
   debug("[%d] killing '%s'\n", j, jobs[j].command);
 
   /* TODO: I love the smell of napalm in the morning. */
+  job_t* job = &jobs[j];
+  if (!job->pgid) {
+    return false;
+  }
+
+  Kill(-job->pgid, SIGTERM);
 
   return true;
 }
