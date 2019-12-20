@@ -21,7 +21,7 @@ static int tty_fd = -1;        /* controlling terminal file descriptor */
 static void sigchld_handler(int sig) {
     int old_errno = errno;
     int status;
-    /* TODO: Change state (FINISHED, RUNNING, STOPPED) of processes and jobs.
+    /* DONE: Change state (FINISHED, RUNNING, STOPPED) of processes and jobs.
      * Bury all children that finished saving their status in jobs. */
     for (size_t j = 0; j < njobmax; j++) {
         job_t* job = &jobs[j];
@@ -141,7 +141,7 @@ int jobstate(int j, int* statusp) {
     job_t* job = &jobs[j];
     int state = job->state;
 
-    /* TODO: Handle case where job has finished. */
+    /* DONE: Handle case where job has finished. */
     if (jobs->state == FINISHED) {
         *statusp = jobs->proc[jobs->nproc-1].exitcode;
         deljob(jobs);
@@ -167,7 +167,13 @@ bool resumejob(int j, int bg, sigset_t* mask) {
     if (j >= njobmax || jobs[j].state == FINISHED)
         return false;
 
-    /* TODO: Continue stopped job. Possibly move job to foreground slot. */
+    /* DONE: Continue stopped job. Possibly move job to foreground slot. */
+    job_t* job = &jobs[j];
+    Kill(-job->pgid, SIGCONT);
+
+    if (!bg) {
+        movejob(j, FG);
+    }
 
     return true;
 }
@@ -178,7 +184,7 @@ bool killjob(int j) {
         return false;
     debug("[%d] killing '%s'\n", j, jobs[j].command);
 
-    /* TODO: I love the smell of napalm in the morning. */
+    /* DONE: I love the smell of napalm in the morning. */
     job_t* job = &jobs[j];
     if (!job->pgid) {
         return false;
@@ -195,8 +201,8 @@ void watchjobs(int which) {
         if (jobs[j].pgid == 0)
             continue;
 
-        /* TODO: Report job number, state, command and exit code or signal. */
-            (void)exitcode;
+    /* TODO: Report job number, state, command and exit code or signal. */
+    (void)exitcode;
     }
 }
 
