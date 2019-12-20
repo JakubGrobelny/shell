@@ -29,12 +29,22 @@ static void sigchld_handler(int sig) {
             continue;
         }
 
-        bool same_states = true;
-        size_t state = ALL;
+        bool has_running = false;
+        bool has_stopped = false;
 
         for (size_t p = 0; p < job->nproc; p++) {
             proc_t* proc = &job->proc[p];
-            if (waitpid(proc->pid, &status, WNOHANG | WUNTRACED | WCONTINUED)) {
+            if (proc->state == FINISHED) {
+                continue;
+            }
+
+            int wait_res = waitpid(
+                proc->pid,
+                &status,
+                WNOHANG | WUNTRACED | WCONTINUED
+            );
+
+            if (wait_res > 0) {
                 if (WIFEXITED(status)) {
                     proc->state = FINISHED;
                     proc->exitcode = WEXITSTATUS(status);
@@ -45,15 +55,19 @@ static void sigchld_handler(int sig) {
                 }
             }
 
-            if (same_states && proc->state != state && state != ALL) {
-                same_states = false;
-            } else if (state == ALL) {
-                state = proc->state;
+            if (proc->state == RUNNING) {
+                has_running = true;
+            } else if (proc->state == STOPPED) {
+                has_stopped = true;
             }
         }
 
-        if (same_states) {
-            job->state = state;
+        if (has_running) {
+            job->state = RUNNING;
+        } else if (has_stopped) {
+            job->state = STOPPED;
+        } else {
+            job->state = FINISHED;
         }
     }
 
@@ -143,7 +157,7 @@ int jobstate(int j, int* statusp) {
 
     /* DONE: Handle case where job has finished. */
     if (jobs->state == FINISHED) {
-        *statusp = jobs->proc[jobs->nproc-1].exitcode;
+        *statusp = exitcode(job);
         deljob(jobs);
     }
 
@@ -200,9 +214,30 @@ void watchjobs(int which) {
     for (int j = BG; j < njobmax; j++) {
         if (jobs[j].pgid == 0)
             continue;
-
-    /* TODO: Report job number, state, command and exit code or signal. */
-    (void)exitcode;
+    /* DONE: Report job number, state, command and exit code or signal. */
+        job_t* job = &jobs[j];
+        if (which == ALL || job->state == which) {
+            msg("[%d] ", j);
+            switch (job->state) {
+                case FINISHED: {
+                    msg(
+                        "exited, status=%d (%s)\n", 
+                        exitcode(job), 
+                        job->command
+                    );
+                    deljob(job);
+                    break;
+                }
+                case STOPPED: {
+                    msg("stopped (%s)\n", job->command);
+                    break;
+                }
+                case RUNNING: {
+                    msg("running (%s)\n", job->command);
+                    break;
+                }
+            }
+        }
     }
 }
 

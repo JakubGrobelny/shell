@@ -37,7 +37,7 @@ static int do_job(token_t* token, int ntokens, bool bg) {
     ntokens = do_redir(token, ntokens, &input, &output);
 
     if ((exitcode = builtin_command(token)) >= 0)
-      return exitcode;
+        return exitcode;
 
     sigset_t mask;
     Sigprocmask(SIG_BLOCK, &sigchld_mask, &mask);
@@ -55,7 +55,7 @@ static pid_t do_stage(pid_t pgid, sigset_t* mask, int input, int output,
     ntokens = do_redir(token, ntokens, &input, &output);
 
     /* TODO: Start a subprocess and make sure it's moved to a process group. */
-      pid_t pid;
+    pid_t pid;
 
     return pid;
 }
@@ -91,8 +91,8 @@ static int do_pipeline(token_t* token, int ntokens, bool bg) {
 
 static bool is_pipeline(token_t* token, int ntokens) {
     for (int i = 0; i < ntokens; i++)
-      if (token[i] == T_PIPE)
-        return true;
+        if (token[i] == T_PIPE)
+            return true;
     return false;
 }
 
@@ -102,16 +102,16 @@ static void eval(char* cmdline) {
     token_t* token = tokenize(cmdline, &ntokens);
 
     if (ntokens > 0 && token[ntokens - 1] == T_BGJOB) {
-      token[--ntokens] = NULL;
-      bg = true;
+        token[--ntokens] = NULL;
+        bg = true;
     }
 
     if (ntokens > 0) {
-      if (is_pipeline(token, ntokens)) {
-        do_pipeline(token, ntokens, bg);
-      } else {
-        do_job(token, ntokens, bg);
-      }
+        if (is_pipeline(token, ntokens)) {
+            do_pipeline(token, ntokens, bg);
+        } else {
+            do_job(token, ntokens, bg);
+        }
     }
 
     free(token);
