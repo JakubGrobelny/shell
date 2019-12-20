@@ -1,4 +1,4 @@
-#include <stdio.h> // to remove compilation errors from readline.h
+#include <stdio.h> // to remove compilation errors from readline.h on Arch
 #include <readline/readline.h>
 #include <readline/history.h>
 
