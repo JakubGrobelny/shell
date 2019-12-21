@@ -75,7 +75,8 @@ static int do_job(token_t* token, int ntokens, bool bg) {
         sigset_t clear_mask;
         sigemptyset(&clear_mask);    
         Sigprocmask(SIG_SETMASK, &clear_mask, NULL);
-        
+        Signal(SIGTSTP, SIG_DFL);
+
         if (output != -1) {
             dup2(output, STDOUT_FILENO);
         }

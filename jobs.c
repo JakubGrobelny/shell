@@ -254,25 +254,17 @@ int monitorjob(sigset_t* mask) {
     exitcode = -1;
 
     while (true) {
-        printf("watchin'\n");
+        Sigsuspend(mask);
         state = fg_job->state;
         if (state == STOPPED) {
-            printf("stopped\n");
-            int bg = allocjob();
+            int bg = addjob(0, BG);
             movejob(FG, bg);
-            fg_job->state = FINISHED;
-            deljob(fg_job);
             break;
         } else if (state == FINISHED) {
-            printf("finished\n");
             assert(fg_job->proc != NULL);
             exitcode = fg_job->proc[fg_job->nproc-1].exitcode;
             break;
         }
-        printf("state was %d\n", fg_job->state);
-
-        Sigsuspend(mask);
-        printf("Got sigchld\n");
     }
 
     Tcsetpgrp(tty_fd, getpgrp());
