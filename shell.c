@@ -150,7 +150,17 @@ static int do_pipeline(token_t* token, int ntokens, bool bg) {
 
     /* TODO: Start pipeline subprocesses, create a job and monitor it.
      * Remember to close unused pipe ends! */
-    (void)input; (void)output; (void)next_input; (void)job; (void)pgid; (void)pid; (void)do_stage;
+    ntokens = do_redir(token, ntokens, &input, &output);
+
+    (void)job; (void)pgid; (void)pid; (void)do_stage;
+
+    if (output == -1) {
+        output = STDOUT_FILENO;
+    }
+
+    if (input == -1) {
+        input = STDIN_FILENO;
+    }
 
     Sigprocmask(SIG_SETMASK, &mask, NULL);
     return exitcode;

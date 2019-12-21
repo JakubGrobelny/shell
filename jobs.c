@@ -291,7 +291,6 @@ void shutdownjobs(void) {
     Sigprocmask(SIG_BLOCK, &sigchld_mask, &mask);
 
     /* DONE: Kill remaining jobs and wait for them to finish. */
-    
     for (size_t j = 0; j < njobmax; j++) {
         job_t* job = &jobs[j];
         if (!job->pgid) {
@@ -302,9 +301,10 @@ void shutdownjobs(void) {
             resumejob(j, BG, &mask);
         }
 
-        killjob(j);
-
-        Sigsuspend(&mask);
+        if (job->state != FINISHED) {
+            killjob(j);
+            Sigsuspend(&mask);
+        }
     }
 
     watchjobs(FINISHED);
