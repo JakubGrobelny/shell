@@ -45,6 +45,7 @@ static int do_redir(token_t* token, int ntokens, int* inputp, int* outputp) {
 
             token[ntokens-2] = T_NULL;
             token[ntokens-1] = T_NULL;
+
         } else {
             n++;
         }
@@ -149,7 +150,7 @@ static int do_pipeline(token_t* token, int ntokens, bool bg) {
 
     /* TODO: Start pipeline subprocesses, create a job and monitor it.
      * Remember to close unused pipe ends! */
-    (void)input; (void)job; (void)pid; (void)pgid; (void)do_stage;
+    (void)input; (void)output; (void)next_input; (void)job; (void)pgid; (void)pid; (void)do_stage;
 
     Sigprocmask(SIG_SETMASK, &mask, NULL);
     return exitcode;
@@ -198,22 +199,22 @@ int main(int argc, char* argv[]) {
 
     char* line;
     while (true) {
-      if (!sigsetjmp(loop_env, 1)) {
-        line = readline("# ");
-      } else {
-        msg("\n");
-        continue;
-      }
+        if (!sigsetjmp(loop_env, 1)) {
+            line = readline("# ");
+        } else {
+            msg("\n");
+            continue;
+        }
 
-      if (line == NULL)
-        break;
+        if (line == NULL)
+            break;
 
-      if (strlen(line)) {
-        add_history(line);
-        eval(line);
-      }
-      free(line);
-      watchjobs(FINISHED);
+        if (strlen(line)) {
+            add_history(line);
+            eval(line);
+        }
+        free(line);
+        watchjobs(FINISHED);
     }
 
     msg("\n");

@@ -218,7 +218,7 @@ void watchjobs(int which) {
     /* DONE: Report job number, state, command and exit code or signal. */
         job_t* job = &jobs[j];
         if (which == ALL || job->state == which) {
-            msg("[%d] ", j);
+            msg("[%d] ", j);            
             switch (job->state) {
                 case FINISHED: {
                     msg(
@@ -292,36 +292,19 @@ void shutdownjobs(void) {
 
     /* DONE: Kill remaining jobs and wait for them to finish. */
     
-    for (size_t j = 0; j < njobmax; j++) {        
+    for (size_t j = 0; j < njobmax; j++) {
         job_t* job = &jobs[j];
         if (!job->pgid) {
             continue;
         }
-        
+
         if (job->state == STOPPED) {
             resumejob(j, BG, &mask);
-        } 
-
-        if (job->state != FINISHED) {
-            killjob(j);
-        }
-    }
-
-    while (true) {
-        bool all_finished = true;
-
-        for (size_t j = 0; j < njobmax; j++) {
-            if (jobs[j].pgid && jobs[j].state != FINISHED) {
-                all_finished = false;
-                break;
-            }
         }
 
-        if (!all_finished) {
-            Sigsuspend(&mask);
-        } else {
-            break;
-        }
+        killjob(j);
+
+        Sigsuspend(&mask);
     }
 
     watchjobs(FINISHED);
