@@ -20,8 +20,32 @@ static int do_redir(token_t* token, int ntokens, int* inputp, int* outputp) {
     int n = 0;           /* number of tokens after redirections are removed */
 
     for (int i = 0; i < ntokens; i++) {
-      /* TODO: Handle tokens and open files as requested. */
-      (void)mode;
+    /* TODO: Handle tokens and open files as requested. */
+        if (token[i] == T_INPUT || token[i] == T_OUTPUT) {
+            assert(i+1 != ntokens && string_p(token[i+1]));
+            mode = token[i];
+    
+            char* filename = token[i+1];
+    
+            int flags = mode == T_INPUT
+                      ? O_RDONLY
+                      : O_WRONLY | O_CREAT;
+    
+            int* fd = mode == T_INPUT
+                    ? inputp
+                    : outputp;
+
+            *fd = open(filename, flags);
+
+            for (int j = i+2; j < ntokens; j++) {
+                token[j-2] = token[j];
+            }
+
+            token[ntokens-2] = T_NULL;
+            token[ntokens-1] = T_NULL;
+        } else {
+            n++;
+        }
     }
 
     token[n] = NULL;

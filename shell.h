@@ -11,7 +11,7 @@
 #define debug(...)
 #endif
 
-typedef char *token_t;
+typedef char* token_t;
 
 #define T_NULL ((token_t)0)
 #define T_AND ((token_t)1)
@@ -26,37 +26,37 @@ typedef char *token_t;
 #define separator_p(t) ((t) <= T_COLON)
 #define string_p(t) ((t) > T_BANG)
 
-void strapp(char **dstp, const char *src);
-token_t *tokenize(char *s, int *tokc_p);
+void strapp(char** dstp, const char* src);
+token_t* tokenize(char* s, int* tokc_p);
 
 /* Do not change those values or code will break! */
 enum {
-  FG = 0, /* foreground job */
-  BG = 1, /* background job */
+    FG = 0, /* foreground job */
+    BG = 1, /* background job */
 };
 
 /* Do not change those values or code will break! */
 enum {
-  ALL = -1,     /* all jobs */
-  FINISHED = 0, /* only jobs that have finished */
-  RUNNING = 1,  /* only jobs that are still running */
-  STOPPED = 2,  /* jobs that have been suspended by SIGTSTP / SIGSTOP */
+    ALL = -1,     /* all jobs */
+    FINISHED = 0, /* only jobs that have finished */
+    RUNNING = 1,  /* only jobs that are still running */
+    STOPPED = 2,  /* jobs that have been suspended by SIGTSTP / SIGSTOP */
 };
 
 void initjobs(void);
 void shutdownjobs(void);
 
 int addjob(pid_t pgid, int bg);
-void addproc(int job, pid_t pid, char **argv);
+void addproc(int job, pid_t pid, char** argv);
 bool killjob(int job);
 void watchjobs(int state);
-int jobstate(int job, int *exitcodep);
-char *jobcmd(int job);
-bool resumejob(int job, int bg, sigset_t *mask);
-int monitorjob(sigset_t *mask);
+int jobstate(int job, int* exitcodep);
+char* jobcmd(int job);
+bool resumejob(int job, int bg, sigset_t* mask);
+int monitorjob(sigset_t* mask);
 
-int builtin_command(char **argv);
-noreturn void external_command(char **argv);
+int builtin_command(char** argv);
+noreturn void external_command(char** argv);
 
 /* Used by Sigprocmask to enter critical section protecting against SIGCHLD. */
 extern sigset_t sigchld_mask;
