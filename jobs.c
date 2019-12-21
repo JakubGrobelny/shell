@@ -291,6 +291,7 @@ void shutdownjobs(void) {
     Sigprocmask(SIG_BLOCK, &sigchld_mask, &mask);
 
     /* DONE: Kill remaining jobs and wait for them to finish. */
+    
     for (size_t j = 0; j < njobmax; j++) {        
         job_t* job = &jobs[j];
         if (!job->pgid) {
@@ -298,7 +299,7 @@ void shutdownjobs(void) {
         }
         
         if (job->state == STOPPED) {
-            resumejob(j, BG, &sigchld_mask);
+            resumejob(j, BG, &mask);
         } 
 
         if (job->state != FINISHED) {
@@ -306,16 +307,21 @@ void shutdownjobs(void) {
         }
     }
 
-    bool all_finished = false;
-    while (!all_finished) {
-        all_finished = true;
+    while (true) {
+        bool all_finished = true;
+
         for (size_t j = 0; j < njobmax; j++) {
-            if (jobs[j].state != FINISHED) {
+            if (jobs[j].pgid && jobs[j].state != FINISHED) {
                 all_finished = false;
                 break;
             }
         }
-        Sigsuspend(&mask);
+
+        if (!all_finished) {
+            Sigsuspend(&mask);
+        } else {
+            break;
+        }
     }
 
     watchjobs(FINISHED);

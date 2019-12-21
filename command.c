@@ -8,7 +8,7 @@ typedef struct {
 } command_t;
 
 static int do_quit(char** argv) {
-    // shutdownjobs(); // added so that jobs are ended properly on exit
+    shutdownjobs(); // added so that jobs are ended properly on exit
     exit(EXIT_SUCCESS);
 }
 
