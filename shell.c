@@ -20,11 +20,11 @@ static int do_redir(token_t* token, int ntokens, int* inputp, int* outputp) {
     int n = 0;           /* number of tokens after redirections are removed */
 
     for (int i = 0; i < ntokens; i++) {
-    /* TODO: Handle tokens and open files as requested. */
+    /* DONE: Handle tokens and open files as requested. */
         if (token[i] == T_INPUT || token[i] == T_OUTPUT) {
             assert(i+1 != ntokens && string_p(token[i+1]));
+
             mode = token[i];
-    
             char* filename = token[i+1];
     
             int flags = mode == T_INPUT
@@ -66,7 +66,39 @@ static int do_job(token_t* token, int ntokens, bool bg) {
     sigset_t mask;
     Sigprocmask(SIG_BLOCK, &sigchld_mask, &mask);
 
-    /* TODO: Start a subprocess, create a job and monitor it. */
+    /* DONE:: Start a subprocess, create a job and monitor it. */
+    pid_t pid = Fork();
+
+    if (!pid) {
+        sigset_t clear_mask;
+        sigemptyset(&clear_mask);    
+        Sigprocmask(SIG_SETMASK, &clear_mask, NULL);
+        
+        if (output != -1) {
+            dup2(output, STDOUT_FILENO);
+        }
+
+        if (input != -1) {
+            dup2(input, STDIN_FILENO);
+        }
+        
+        external_command(token);
+    }
+
+    setpgid(pid, pid);
+    addjob(pid, bg);
+
+    if (output != -1) {
+        close(output);
+    }
+
+    if (input != -1) {
+        close(input);
+    }
+
+    if (!bg) {
+        monitorjob(&mask);
+    }
 
     Sigprocmask(SIG_SETMASK, &mask, NULL);
     return exitcode;
@@ -74,8 +106,14 @@ static int do_job(token_t* token, int ntokens, bool bg) {
 
 /* Start internal or external command in a subprocess that belongs to pipeline.
  * All subprocesses in pipeline must belong to the same process group. */
-static pid_t do_stage(pid_t pgid, sigset_t* mask, int input, int output,
-                        token_t* token, int ntokens) {
+static pid_t do_stage(
+    pid_t pgid, 
+    sigset_t* mask, 
+    int input, 
+    int output,
+    token_t* token, 
+    int ntokens
+) {
     ntokens = do_redir(token, ntokens, &input, &output);
 
     /* TODO: Start a subprocess and make sure it's moved to a process group. */
