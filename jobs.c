@@ -15,8 +15,8 @@ typedef struct job {
 } job_t;
 
 static job_t* jobs = NULL; /* array of all jobs */
-static int njobmax = 1;        /* number of slots in jobs array */
-static int tty_fd = -1;        /* controlling terminal file descriptor */
+static int njobmax = 1;    /* number of slots in jobs array */
+static int tty_fd = -1;    /* controlling terminal file descriptor */
 
 static void sigchld_handler(int sig) {
     int old_errno = errno;
@@ -187,6 +187,7 @@ bool resumejob(int j, int bg, sigset_t* mask) {
 
     if (!bg) {
         movejob(j, FG);
+        monitorjob(mask);
     }
 
     return true;
@@ -246,8 +247,29 @@ void watchjobs(int which) {
 int monitorjob(sigset_t* mask) {
     int exitcode, state;
 
-    /* TODO: Following code requires use of Tcsetpgrp of tty_fd. */
-    (void)state; exitcode = 0;
+    /* DONE: Following code requires use of Tcsetpgrp of tty_fd. */
+    job_t* fg_job = &jobs[FG];
+    assert(fg_job->pgid);
+    Tcsetpgrp(tty_fd, fg_job->pgid);
+    exitcode = -1;
+
+    while (true) {
+        state = fg_job->state;
+        if (state == STOPPED) {
+            int bg = allocjob();
+            movejob(FG, bg);
+            fg_job->state = FINISHED;
+            deljob(fg_job);
+            break;
+        } else if (state == FINISHED) {
+            exitcode = fg_job->proc[fg_job->nproc-1].exitcode;
+            break;
+        }
+
+        Sigsuspend(mask);
+    }
+
+    Tcsetpgrp(tty_fd, getpgrp());
 
     return exitcode;
 }
@@ -270,8 +292,33 @@ void shutdownjobs(void) {
     sigset_t mask;
     Sigprocmask(SIG_BLOCK, &sigchld_mask, &mask);
 
-    /* TODO: Kill remaining jobs and wait for them to finish. */
-    (void)movejob;
+    /* DONE: Kill remaining jobs and wait for them to finish. */
+    for (size_t j = 0; j < njobmax; j++) {        
+        job_t* job = &jobs[j];
+        if (!job->pgid) {
+            continue;
+        }
+        
+        if (job->state == STOPPED) {
+            resumejob(j, BG, &sigchld_mask);
+        } 
+
+        if (job->state != FINISHED) {
+            killjob(j);
+        }
+    }
+
+    bool all_finished = false;
+    while (!all_finished) {
+        all_finished = true;
+        for (size_t j = 0; j < njobmax; j++) {
+            if (jobs[j].state != FINISHED) {
+                all_finished = false;
+                break;
+            }
+        }
+        Sigsuspend(&mask);
+    }
 
     watchjobs(FINISHED);
 
