@@ -45,7 +45,7 @@ static void sigchld_handler(int sig) {
             );
 
             if (wait_res > 0) {
-                if (WIFEXITED(status)) {
+                if (WIFEXITED(status) || WIFSIGNALED(status)) {
                     proc->state = FINISHED;
                     proc->exitcode = WEXITSTATUS(status);
                 } else if (WIFCONTINUED(status)) {
@@ -254,19 +254,25 @@ int monitorjob(sigset_t* mask) {
     exitcode = -1;
 
     while (true) {
+        printf("watchin'\n");
         state = fg_job->state;
         if (state == STOPPED) {
+            printf("stopped\n");
             int bg = allocjob();
             movejob(FG, bg);
             fg_job->state = FINISHED;
             deljob(fg_job);
             break;
         } else if (state == FINISHED) {
+            printf("finished\n");
+            assert(fg_job->proc != NULL);
             exitcode = fg_job->proc[fg_job->nproc-1].exitcode;
             break;
         }
+        printf("state was %d\n", fg_job->state);
 
         Sigsuspend(mask);
+        printf("Got sigchld\n");
     }
 
     Tcsetpgrp(tty_fd, getpgrp());

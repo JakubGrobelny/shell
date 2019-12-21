@@ -35,7 +35,9 @@ static int do_redir(token_t* token, int ntokens, int* inputp, int* outputp) {
                     ? inputp
                     : outputp;
 
-            *fd = open(filename, flags);
+            mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
+
+            *fd = open(filename, flags, mode);
 
             for (int j = i+2; j < ntokens; j++) {
                 token[j-2] = token[j];
@@ -86,7 +88,8 @@ static int do_job(token_t* token, int ntokens, bool bg) {
     }
 
     setpgid(pid, pid);
-    addjob(pid, bg);
+    int job_idx = addjob(pid, bg);
+    addproc(job_idx, pid, token);
 
     if (output != -1) {
         close(output);
