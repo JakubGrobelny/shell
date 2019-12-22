@@ -49,6 +49,7 @@ static int do_redir(token_t* token, int ntokens, int* inputp, int* outputp) {
 
             token[ntokens-2] = T_NULL;
             token[ntokens-1] = T_NULL;
+            i--;
 
         } else {
             n++;
@@ -73,7 +74,7 @@ static int do_job(token_t* token, int ntokens, bool bg) {
     sigset_t mask;
     Sigprocmask(SIG_BLOCK, &sigchld_mask, &mask);
 
-    /* DONE:: Start a subprocess, create a job and monitor it. */
+    /* DONE:: Start a subprocess, create a job and monitor it. */    
     pid_t pid = Fork();
 
     if (!pid) {
@@ -96,8 +97,8 @@ static int do_job(token_t* token, int ntokens, bool bg) {
     }
 
     setpgid(pid, pid);
-    int job_idx = addjob(pid, bg);
-    addproc(job_idx, pid, token);
+    int job = addjob(pid, bg);
+    addproc(job, pid, token);
 
     if (output != -1) {
         close(output);
@@ -109,6 +110,8 @@ static int do_job(token_t* token, int ntokens, bool bg) {
 
     if (!bg) {
         exitcode = monitorjob(&mask);
+    } else {
+        msg("[%d] running '%s'\n", job, jobcmd(job));
     }
 
     Sigprocmask(SIG_SETMASK, &mask, NULL);
@@ -227,6 +230,8 @@ static int do_pipeline(token_t* token, int ntokens, bool bg) {
 
     if (!bg) {
         monitorjob(&mask);
+    } else {
+        msg("[%d] running '%s'\n", job, jobcmd(job));
     }
 
     Sigprocmask(SIG_SETMASK, &mask, NULL);
