@@ -47,7 +47,7 @@ static void sigchld_handler(int sig) {
             if (wait_res > 0) {
                 if (WIFEXITED(status) || WIFSIGNALED(status)) {
                     proc->state = FINISHED;
-                    proc->exitcode = WEXITSTATUS(status);
+                    proc->exitcode = status;
                 } else if (WIFCONTINUED(status)) {
                     proc->state = RUNNING;
                 } else if (WIFSTOPPED(status)) {
@@ -206,6 +206,7 @@ bool killjob(int j) {
     }
 
     Kill(-job->pgid, SIGTERM);
+    Kill(-job->pgid, SIGCONT);
 
     return true;
 }
@@ -221,11 +222,24 @@ void watchjobs(int which) {
             msg("[%d] ", j);            
             switch (job->state) {
                 case FINISHED: {
-                    msg(
-                        "exited '%s', status=%d\n", 
-                        job->command,
-                        exitcode(job)
-                    );
+
+                    int status = exitcode(job);
+                    if (WIFEXITED(status)) {
+                        status = WEXITSTATUS(status);
+                        msg(
+                            "exited '%s', status=%d\n",
+                            job->command,
+                            status
+                        );
+                    } else if (WIFSIGNALED(status)) {
+                        int signal = WTERMSIG(status);
+                        msg(
+                            "killed '%s' by signal %d\n",
+                            job->command,
+                            signal
+                        );
+                    }
+
                     deljob(job);
                     break;
                 }
@@ -252,6 +266,8 @@ int monitorjob(sigset_t* mask) {
     assert(fg_job->pgid);
     Tcsetpgrp(tty_fd, fg_job->pgid);
     exitcode = -1;
+
+    Kill(-fg_job->pgid, SIGCONT);
 
     while (true) {
         Sigsuspend(mask);
@@ -296,7 +312,6 @@ void shutdownjobs(void) {
         }
      
         killjob(j);
-        resumejob(j, BG, &mask);
         while (job->state != FINISHED) {
             Sigsuspend(&mask);
         }

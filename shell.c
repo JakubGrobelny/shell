@@ -19,7 +19,7 @@ static int do_redir(token_t* token, int ntokens, int* inputp, int* outputp) {
     token_t mode = NULL; /* T_INPUT, T_OUTPUT or NULL */
     int n = 0;           /* number of tokens after redirections are removed */
 
-    for (int i = 0; i < ntokens; i++) {
+    for (int i = 0; i < ntokens && token[i] != T_NULL; i++) {
     /* DONE: Handle tokens and open files as requested. */
         if (token[i] == T_INPUT || token[i] == T_OUTPUT) {
             assert(i+1 != ntokens && string_p(token[i+1]));
@@ -79,7 +79,7 @@ static int do_job(token_t* token, int ntokens, bool bg) {
 
     if (!pid) {
         sigset_t clear_mask;
-        sigemptyset(&clear_mask);    
+        sigemptyset(&clear_mask);
         Sigprocmask(SIG_SETMASK, &clear_mask, NULL);
         Signal(SIGTSTP, SIG_DFL);
         Signal(SIGTTIN, SIG_DFL);
