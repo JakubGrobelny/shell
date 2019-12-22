@@ -137,7 +137,10 @@ static pid_t do_stage(
         if (input != -1) {
             dup2(input, STDOUT_FILENO);
         }
-        Close(output);
+        
+        if (output != -1) {
+            Close(output);
+        }
 
         int exitcode;
         if ((exitcode = builtin_command(token)) >= 0) {
@@ -148,8 +151,12 @@ static pid_t do_stage(
     }
 
     printf("output: %d\n", output);
-    dup2(output, STDIN_FILENO);
-    Close(input);
+    if (output != -1) {
+        dup2(output, STDIN_FILENO);
+    }
+    if (input != -1) {
+        Close(input);
+    }
 
     return pid;
 }
@@ -192,13 +199,12 @@ static int do_pipeline(token_t* token, int ntokens, bool bg) {
             end++;
         }
 
+        if (is_last) {
+            break;
+        }
+
         token_t* stage_tokens = token + stage_tokens_iter;
         size_t len = end - stage_tokens_iter;
-
-        if (is_last) {
-            Close(next_input);
-            next_input = -1;
-        }
 
         pid = do_stage(pgid, &mask, next_input, output, stage_tokens, len);
 
@@ -209,14 +215,21 @@ static int do_pipeline(token_t* token, int ntokens, bool bg) {
 
         addproc(job, pid, stage_tokens);
 
-        if (!is_last) {
-            mkpipe(&next_input, &output);
-        } else {
-            close(output);
-        }
+        mkpipe(&next_input, &output);
 
         stage_tokens_iter = end + 1;
     }
+
+    pid = do_stage(
+        pgid, 
+        &mask, 
+        -1, 
+        -1, 
+        token + 1 + stage_tokens_iter, 
+        ntokens - stage_tokens_iter
+    );
+
+    addproc(job, pid, token + 1 + stage_tokens_iter);
 
     if (!bg) {
         exitcode = monitorjob(&mask);
