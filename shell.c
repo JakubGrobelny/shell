@@ -37,6 +37,10 @@ static int do_redir(token_t* token, int ntokens, int* inputp, int* outputp) {
 
             mode_t mode = S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH;
 
+            if (*fd != -1) {
+                close(*fd);
+            }
+
             *fd = open(filename, flags, mode);
 
             for (int j = i+2; j < ntokens; j++) {
@@ -102,7 +106,7 @@ static int do_job(token_t* token, int ntokens, bool bg) {
     }
 
     if (!bg) {
-        monitorjob(&mask);
+        exitcode = monitorjob(&mask);
     }
 
     Sigprocmask(SIG_SETMASK, &mask, NULL);
@@ -122,7 +126,30 @@ static pid_t do_stage(
     ntokens = do_redir(token, ntokens, &input, &output);
 
     /* TODO: Start a subprocess and make sure it's moved to a process group. */
-    pid_t pid;
+    pid_t pid = Fork();
+    if (!pid) {
+        setpgid(0, pgid);
+
+        Sigprocmask(SIG_SETMASK, mask, NULL);
+        Signal(SIGTSTP, SIG_DFL);
+
+        printf("input: %d\n", input);
+        if (input != -1) {
+            dup2(input, STDOUT_FILENO);
+        }
+        Close(output);
+
+        int exitcode;
+        if ((exitcode = builtin_command(token)) >= 0) {
+            exit(exitcode);
+        }
+
+        external_command(token);
+    }
+
+    printf("output: %d\n", output);
+    dup2(output, STDIN_FILENO);
+    Close(input);
 
     return pid;
 }
@@ -150,16 +177,49 @@ static int do_pipeline(token_t* token, int ntokens, bool bg) {
 
     /* TODO: Start pipeline subprocesses, create a job and monitor it.
      * Remember to close unused pipe ends! */
-    ntokens = do_redir(token, ntokens, &input, &output);
+    (void)input;
 
-    (void)job; (void)pgid; (void)pid; (void)do_stage;
+    size_t stage_tokens_iter = 0;
+    while (stage_tokens_iter < ntokens) {
+        size_t end = stage_tokens_iter;
+        bool is_last = true;
+        while (end < ntokens && token[end] != T_NULL) {
+            if (token[end] == T_PIPE) {
+                token[end] = T_NULL;
+                is_last = false;
+                break;
+            }
+            end++;
+        }
 
-    if (output == -1) {
-        output = STDOUT_FILENO;
+        token_t* stage_tokens = token + stage_tokens_iter;
+        size_t len = end - stage_tokens_iter;
+
+        if (is_last) {
+            Close(next_input);
+            next_input = -1;
+        }
+
+        pid = do_stage(pgid, &mask, next_input, output, stage_tokens, len);
+
+        if (job == -1) { // first process in the pipeline
+            pgid = pid;
+            job = addjob(pgid, bg);
+        }
+
+        addproc(job, pid, stage_tokens);
+
+        if (!is_last) {
+            mkpipe(&next_input, &output);
+        } else {
+            close(output);
+        }
+
+        stage_tokens_iter = end + 1;
     }
 
-    if (input == -1) {
-        input = STDIN_FILENO;
+    if (!bg) {
+        exitcode = monitorjob(&mask);
     }
 
     Sigprocmask(SIG_SETMASK, &mask, NULL);
