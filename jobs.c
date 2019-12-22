@@ -222,19 +222,19 @@ void watchjobs(int which) {
             switch (job->state) {
                 case FINISHED: {
                     msg(
-                        "exited, status=%d (%s)\n", 
-                        exitcode(job), 
-                        job->command
+                        "exited '%s', status=%d\n", 
+                        job->command,
+                        exitcode(job)
                     );
                     deljob(job);
                     break;
                 }
                 case STOPPED: {
-                    msg("stopped (%s)\n", job->command);
+                    msg("suspended '%s'\n", job->command);
                     break;
                 }
                 case RUNNING: {
-                    msg("running (%s)\n", job->command);
+                    msg("running '%s'\n", job->command);
                     break;
                 }
             }
@@ -294,13 +294,9 @@ void shutdownjobs(void) {
         if (!job->pgid || job->state == FINISHED) {
             continue;
         }
-
-        if (job->state == STOPPED) {
-            resumejob(j, BG, &mask);
-        }
-
+     
         killjob(j);
-
+        resumejob(j, BG, &mask);
         while (job->state != FINISHED) {
             Sigsuspend(&mask);
         }
