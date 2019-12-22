@@ -255,14 +255,12 @@ int monitorjob(sigset_t* mask) {
 
     while (true) {
         Sigsuspend(mask);
-        state = fg_job->state;
+        state = jobstate(FG, &exitcode);
         if (state == STOPPED) {
             int bg = addjob(0, BG);
             movejob(FG, bg);
             break;
         } else if (state == FINISHED) {
-            assert(fg_job->proc != NULL);
-            exitcode = fg_job->proc[fg_job->nproc-1].exitcode;
             break;
         }
     }
@@ -293,7 +291,7 @@ void shutdownjobs(void) {
     /* DONE: Kill remaining jobs and wait for them to finish. */
     for (size_t j = 0; j < njobmax; j++) {
         job_t* job = &jobs[j];
-        if (!job->pgid) {
+        if (!job->pgid || job->state == FINISHED) {
             continue;
         }
 
@@ -301,8 +299,9 @@ void shutdownjobs(void) {
             resumejob(j, BG, &mask);
         }
 
-        if (job->state != FINISHED) {
-            killjob(j);
+        killjob(j);
+
+        while (job->state != FINISHED) {
             Sigsuspend(&mask);
         }
     }
