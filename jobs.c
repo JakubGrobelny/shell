@@ -158,7 +158,7 @@ int jobstate(int j, int* statusp) {
     /* DONE: Handle case where job has finished. */
     if (jobs->state == FINISHED) {
         *statusp = exitcode(job);
-        deljob(jobs);
+        deljob(job);
     }
 
     return state;
